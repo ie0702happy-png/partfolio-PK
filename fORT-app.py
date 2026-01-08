@@ -5,8 +5,8 @@ import time
 import numpy as np
 
 # --- 頁面設定 ---
-st.set_page_config(page_title="百萬投資大亂鬥 (全明星版)", layout="wide")
-st.title("💰 百萬台幣投資組合大亂鬥 (含 VT & BTC)")
+st.set_page_config(page_title="百萬投資大亂鬥", layout="wide")
+st.title("💰 百萬台幣投資組合大亂鬥")
 
 # --- 側邊欄 ---
 with st.sidebar:
@@ -38,7 +38,7 @@ portfolios = {
         "VOO": 0.24, "AVUV": 0.12, "QMOM": 0.12, "VXUS": 0.12,
         "AVDV": 0.06, "IMOM": 0.06, "AVES": 0.08, "0050.TW": 0.20
     },
-    "🌎 AVGE (單一)": {
+    "🌎 AVGE ": {
         "AVGE": 1.0
     },
     "🇺🇸 S&P 500 (VOO)": {
@@ -174,7 +174,7 @@ try:
                     )
             
             st.divider()
-            st.subheader("📊 戰況分析表 (含 VT & BTC)")
+            st.subheader("📊 戰況分析表")
             
             st.dataframe(
                 stats_df[['總報酬率 (%)', '最大回撤 (Max DD)', '波動度 (Vol)', '夏普值 (Sharpe)']].style.format("{:.2f}"),
