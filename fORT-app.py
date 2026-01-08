@@ -5,9 +5,9 @@ import time
 import numpy as np
 
 # --- 頁面設定 ---
-st.set_page_config(page_title="百萬投資：雙時空大亂鬥", layout="wide")
-st.title("💰 百萬投資：雙時空大亂鬥")
-st.caption("🇺🇸 預設視角：美國人 (無稅務損耗) | ⚡ 解決回測長度問題：採用雙分頁設計")
+st.set_page_config(page_title="百萬投資：多重宇宙大亂鬥", layout="wide")
+st.title("💰 百萬投資：多重宇宙大亂鬥")
+st.caption("🇺🇸 預設視角：美國人 (無稅務損耗) | 💰 本金：100 萬台幣 | ⚡ 採用多分頁架構")
 
 # --- 側邊欄 ---
 with st.sidebar:
@@ -20,7 +20,7 @@ with st.sidebar:
     
     st.divider()
 
-    # 預設索引設為 5 (對應 "max")
+    # 預設 "max"
     period = st.selectbox("回測時間範圍", ["YTD", "6mo", "1y", "2y", "5y", "max"], index=5)
     
     st.write("📉 **參數設定**")
@@ -29,7 +29,7 @@ with st.sidebar:
     if st.button("🔄 手動刷新"):
         st.rerun()
 
-# --- 定義所有投資組合 ---
+# --- 1. 定義所有投資組合 (總表) ---
 portfolios_all = {
     "🍺 Ginger Ale (美股因子)": {
         "VOO": 0.30, "AVUV": 0.30, "VEA": 0.10, 
@@ -39,14 +39,14 @@ portfolios_all = {
         "VOO": 0.24, "AVUV": 0.12, "QMOM": 0.12, "VXUS": 0.12,
         "AVDV": 0.06, "IMOM": 0.06, "AVES": 0.08, "0050.TW": 0.20
     },
+    "🇺🇸 S&P 500 (VOO)": {
+        "VOO": 1.0
+    },
     "🔰 你的組合 (英股優勢)": {
         "VWRA.L": 0.50, "AVGS.L": 0.30, "0050.TW": 0.20
     },
     "🌎 AVGE (單一因子)": {
         "AVGE": 1.0
-    },
-    "🇺🇸 S&P 500 (VOO)": {
-        "VOO": 1.0
     },
     "🇹🇼 0050 (台灣五十)": {
         "0050.TW": 1.0
@@ -59,12 +59,20 @@ portfolios_all = {
     }
 }
 
-# --- 定義長線選手 (剔除 2019 後才成立的因子 ETF) ---
-# 這些標的擁有較長的歷史，可以單獨拉出來跑長線
-long_term_candidates = ["🇺🇸 S&P 500 (VOO)", "🇹🇼 0050 (台灣五十)", "🌐 VT (全球股市)", "₿ Bitcoin"]
-portfolios_long = {k: v for k, v in portfolios_all.items() if k in long_term_candidates}
+# --- 2. 定義分組名單 ---
 
-# --- 稅務損耗估算 (Tax Drag) ---
+# 群組 A: 焦點對決 (您指定的 3 個)
+focus_group_names = ["🍺 Ginger Ale (美股因子)", "🇺🇸 S&P 500 (VOO)", "🌊 清流君 Portfolio"]
+portfolios_focus = {k: v for k, v in portfolios_all.items() if k in focus_group_names}
+
+# 群組 B: 全員 (直接用 portfolios_all)
+
+# 群組 C: 長線老將 (剔除年輕 ETF)
+long_term_names = ["🇺🇸 S&P 500 (VOO)", "🇹🇼 0050 (台灣五十)", "🌐 VT (全球股市)", "₿ Bitcoin"]
+portfolios_long = {k: v for k, v in portfolios_all.items() if k in long_term_names}
+
+
+# --- 稅務損耗圖表 ---
 tax_drag_map = {
     "VOO": 0.015 * 0.30, "VT": 0.020 * 0.30, "VXUS": 0.030 * 0.30,
     "VEA": 0.030 * 0.30, "VWO": 0.028 * 0.30, "AVUV": 0.018 * 0.30, 
@@ -79,7 +87,7 @@ for p in portfolios_all.values():
     all_tickers.update(p.keys())
 all_tickers_list = list(all_tickers) + ["USDTWD=X"]
 
-# --- 核心邏輯 ---
+# --- 核心邏輯函數 ---
 def load_data(period):
     try:
         raw = yf.download(all_tickers_list, period=period, progress=False)
@@ -89,25 +97,25 @@ def load_data(period):
         else: df = raw
         if isinstance(df.columns, pd.MultiIndex):
             df.columns = [c[0] if isinstance(c, tuple) else c for c in df.columns]
-        # 注意：這裡先不 dropna，留到後面根據組合需求再切
-        return df.ffill() 
+        return df.ffill() # 這裡不 dropna，保留最大數據量
     except:
         return pd.DataFrame()
 
 def calculate_portfolio_performance(df_input, target_portfolios, apply_tax_logic):
-    # 1. 針對該組別所需的代號進行過濾與 dropna
+    # 1. 篩選該群組需要的代號
     needed_tickers = set()
     for p in target_portfolios.values():
         needed_tickers.update(p.keys())
     needed_tickers.add("USDTWD=X")
     
-    # 只取需要的欄位
+    # 2. 只取相關欄位並清除空值 (關鍵：不同群組的空值起始點不同)
+    # 使用 copy() 避免影響原始 df
     df_subset = df_input[[t for t in needed_tickers if t in df_input.columns]].copy()
-    df_subset = df_subset.dropna() # 這裡 dropna 只會切掉該組別最年輕成員之前的數據
+    df_subset = df_subset.dropna() 
     
     if df_subset.empty: return None, None, None
 
-    # 2. 稅務調整
+    # 3. 稅務調整
     if apply_tax_logic:
         for ticker in df_subset.columns:
             if ticker == "USDTWD=X": continue
@@ -119,7 +127,7 @@ def calculate_portfolio_performance(df_input, target_portfolios, apply_tax_logic
                 start_price = df_subset[ticker].iloc[0]
                 df_subset[ticker] = start_price * (1 + taxed_returns.fillna(0)).cumprod()
 
-    # 3. 轉台幣
+    # 4. 匯率轉換
     twd_prices = pd.DataFrame(index=df_subset.index)
     if "USDTWD=X" in df_subset.columns:
         fx = df_subset["USDTWD=X"]
@@ -132,7 +140,7 @@ def calculate_portfolio_performance(df_input, target_portfolios, apply_tax_logic
     else:
         return None, None, None
 
-    # 4. 組合計算
+    # 5. 組合淨值計算
     initial_capital = 1_000_000
     portfolio_history = pd.DataFrame(index=twd_prices.index)
     stats_list = []
@@ -157,7 +165,6 @@ def calculate_portfolio_performance(df_input, target_portfolios, apply_tax_logic
         # 指標
         total_ret = (daily_val.iloc[-1] / daily_val.iloc[0]) - 1
         daily_ret = daily_val.pct_change().dropna()
-        # 修正這裡：變數名稱是 volatility
         volatility = daily_ret.std() * (252 ** 0.5)
         
         roll_max = daily_val.cummax()
@@ -173,8 +180,7 @@ def calculate_portfolio_performance(df_input, target_portfolios, apply_tax_logic
             "最終資產": daily_val.iloc[-1],
             "總報酬率 (%)": total_ret * 100,
             "最大回撤 (Max DD)": max_dd * 100,
-            # 修正這裡：將 vol 改為 volatility
-            "波動度 (Vol)": volatility * 100,
+            "波動度 (Vol)": vol * 100,
             "夏普值 (Sharpe)": sharpe
         })
         
@@ -185,49 +191,63 @@ try:
     df_raw = load_data(period)
 
     if not df_raw.empty:
-        # 建立兩個分頁
-        tab1, tab2 = st.tabs(["🔥 因子新星大亂鬥 (含 Ginger Ale/清流君)", "🦕 老牌資產馬拉松 (VOO/0050/BTC)"])
+        # 定義三個分頁
+        tab1, tab2, tab3 = st.tabs(["🥊 焦點對決 (Ginger vs VOO vs 清流君)", "🔥 全員大亂鬥 (All)", "🦕 長線馬拉松 (10年以上)"])
         
-        # --- TAB 1: 所有組合 (被短歷史限制) ---
+        # --- TAB 1: 焦點對決 ---
         with tab1:
-            st.info("此分頁包含所有因子組合。因 AVUV/QMOM/VWRA 成立時間較短，歷史數據起點約在 **2019 下半年**。")
-            stats1, hist1, start_date1 = calculate_portfolio_performance(df_raw, portfolios_all, apply_tax)
+            st.subheader("📌 Ginger Ale vs S&P 500 vs 清流君")
+            st.info("⚠️ 注意：因含 AVUV/QMOM 等因子 ETF，歷史起點約為 2019/09。")
+            
+            stats1, hist1, start1 = calculate_portfolio_performance(df_raw, portfolios_focus, apply_tax)
             
             if stats1:
-                st.caption(f"📅 數據區間: {start_date1.date()} 至 今")
+                st.caption(f"📅 統計區間: {start1.date()} ~ 今")
                 df_stats1 = pd.DataFrame(stats1).set_index("組合名稱")
                 
-                # 找出贏家
-                winner1 = df_stats1.sort_values("總報酬率 (%)", ascending=False).iloc[0]
-                st.success(f"🏆 短期獲利王：**{winner1.name}** | 報酬率: {winner1['總報酬率 (%)']:.2f}%")
-
-                cols = st.columns(4)
+                # 3欄顯示
+                cols = st.columns(3)
                 for i, (name, row) in enumerate(df_stats1.iterrows()):
-                    with cols[i % 4]:
+                    with cols[i]:
                         st.metric(name, f"${row['最終資產']:,.0f}", f"{row['總報酬率 (%)']:.2f}%")
                 
                 st.line_chart(hist1)
                 st.dataframe(df_stats1.style.format("{:.2f}"))
 
-        # --- TAB 2: 長線組合 (不受短歷史限制) ---
+        # --- TAB 2: 全員大亂鬥 ---
         with tab2:
-            st.info("此分頁 **排除了** 年輕的因子 ETF，專門顯示傳統資產的長線歷史 (起點取決於 VOO 或 BTC 的歷史)。")
-            stats2, hist2, start_date2 = calculate_portfolio_performance(df_raw, portfolios_long, apply_tax)
+            st.subheader("⚔️ 所有投資組合一次排開")
+            st.info("⚠️ 包含英股、VT 與所有組合。受限於最年輕的 ETF，歷史長度較短。")
+            
+            stats2, hist2, start2 = calculate_portfolio_performance(df_raw, portfolios_all, apply_tax)
             
             if stats2:
-                st.caption(f"📅 數據區間: {start_date2.date()} 至 今 (歷史長度大幅增加！)")
+                st.caption(f"📅 統計區間: {start2.date()} ~ 今")
                 df_stats2 = pd.DataFrame(stats2).set_index("組合名稱")
-                
                 winner2 = df_stats2.sort_values("總報酬率 (%)", ascending=False).iloc[0]
-                st.success(f"🏆 長期獲利王：**{winner2.name}** | 報酬率: {winner2['總報酬率 (%)']:.2f}%")
+                st.success(f"🏆 本區獲利王：**{winner2.name}**")
 
+                st.dataframe(df_stats2.style.format("{:.2f}"), use_container_width=True)
+                st.line_chart(hist2)
+
+        # --- TAB 3: 長線馬拉松 ---
+        with tab3:
+            st.subheader("⏳ 傳統資產長線回測 (剔除年輕因子)")
+            st.info("✅ 已自動剔除 2019 年後成立的 ETF，呈現 VOO / 0050 / BTC 的長期真實歷史。")
+            
+            stats3, hist3, start3 = calculate_portfolio_performance(df_raw, portfolios_long, apply_tax)
+            
+            if stats3:
+                st.caption(f"📅 統計區間: {start3.date()} ~ 今 (歷史大幅拉長！)")
+                df_stats3 = pd.DataFrame(stats3).set_index("組合名稱")
+                
                 cols = st.columns(4)
-                for i, (name, row) in enumerate(df_stats2.iterrows()):
-                    with cols[i % 4]:
+                for i, (name, row) in enumerate(df_stats3.iterrows()):
+                    with cols[i]:
                         st.metric(name, f"${row['最終資產']:,.0f}", f"{row['總報酬率 (%)']:.2f}%")
                 
-                st.line_chart(hist2)
-                st.dataframe(df_stats2.style.format("{:.2f}"))
+                st.line_chart(hist3)
+                st.dataframe(df_stats3.style.format("{:.2f}"))
 
     else:
         st.warning("⏳ 數據讀取中...")
