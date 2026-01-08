@@ -109,7 +109,6 @@ def calculate_portfolio_performance(df_input, target_portfolios, apply_tax_logic
     needed_tickers.add("USDTWD=X")
     
     # 2. 只取相關欄位並清除空值 (關鍵：不同群組的空值起始點不同)
-    # 使用 copy() 避免影響原始 df
     df_subset = df_input[[t for t in needed_tickers if t in df_input.columns]].copy()
     df_subset = df_subset.dropna() 
     
@@ -180,7 +179,7 @@ def calculate_portfolio_performance(df_input, target_portfolios, apply_tax_logic
             "最終資產": daily_val.iloc[-1],
             "總報酬率 (%)": total_ret * 100,
             "最大回撤 (Max DD)": max_dd * 100,
-            "波動度 (Vol)": vol * 100,
+            "波動度 (Vol)": volatility * 100, # <--- 修正處：將 vol 改為 volatility
             "夏普值 (Sharpe)": sharpe
         })
         
