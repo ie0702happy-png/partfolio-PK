@@ -95,7 +95,7 @@ def load_data(period):
         return pd.DataFrame()
 
 def calculate_portfolio_performance(df_input, target_portfolios, apply_tax_logic):
-    # 1. 針對該組別所需的代號進行過濾與 dropna (關鍵步驟：確保長線組別不被短線拖累)
+    # 1. 針對該組別所需的代號進行過濾與 dropna
     needed_tickers = set()
     for p in target_portfolios.values():
         needed_tickers.update(p.keys())
@@ -157,6 +157,7 @@ def calculate_portfolio_performance(df_input, target_portfolios, apply_tax_logic
         # 指標
         total_ret = (daily_val.iloc[-1] / daily_val.iloc[0]) - 1
         daily_ret = daily_val.pct_change().dropna()
+        # 修正這裡：變數名稱是 volatility
         volatility = daily_ret.std() * (252 ** 0.5)
         
         roll_max = daily_val.cummax()
@@ -172,7 +173,8 @@ def calculate_portfolio_performance(df_input, target_portfolios, apply_tax_logic
             "最終資產": daily_val.iloc[-1],
             "總報酬率 (%)": total_ret * 100,
             "最大回撤 (Max DD)": max_dd * 100,
-            "波動度 (Vol)": vol * 100,
+            # 修正這裡：將 vol 改為 volatility
+            "波動度 (Vol)": volatility * 100,
             "夏普值 (Sharpe)": sharpe
         })
         
