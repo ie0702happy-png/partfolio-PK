@@ -6,7 +6,7 @@ import numpy as np
 
 # --- 頁面設定 ---
 st.set_page_config(page_title="百萬投資組合 PK (專業版)", layout="wide")
-st.title("💰 百萬台幣投資組合大亂鬥 (專業分析版)")
+st.title("💰 百萬台幣投資組合大亂鬥")
 
 # --- 側邊欄 ---
 with st.sidebar:
