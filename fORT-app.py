@@ -5,8 +5,8 @@ import time
 import numpy as np
 
 # --- 頁面設定 ---
-st.set_page_config(page_title="百萬投資組合 PK (終極版)", layout="wide")
-st.title("💰 百萬台幣投資組合大亂鬥 (含大盤基準)")
+st.set_page_config(page_title="百萬投資大亂鬥 (全明星版)", layout="wide")
+st.title("💰 百萬台幣投資組合大亂鬥 (含 VT & BTC)")
 
 # --- 側邊欄 ---
 with st.sidebar:
@@ -25,7 +25,7 @@ with st.sidebar:
     if st.button("🔄 手動刷新"):
         st.rerun()
 
-# --- 定義投資組合權重 (新增 S&P500 和 0050) ---
+# --- 定義投資組合權重 (新增 VT 和 BTC) ---
 portfolios = {
     "🔰 你的組合": {
         "VWRA.L": 0.50, "AVGS.L": 0.30, "0050.TW": 0.20
@@ -46,6 +46,12 @@ portfolios = {
     },
     "🇹🇼 0050 (台灣五十)": {
         "0050.TW": 1.0
+    },
+    "🌐 VT (全球股市)": {
+        "VT": 1.0
+    },
+    "₿ Bitcoin (比特幣)": {
+        "BTC-USD": 1.0
     }
 }
 
@@ -68,6 +74,7 @@ def load_data(period):
         if isinstance(df.columns, pd.MultiIndex):
             df.columns = [c[0] if isinstance(c, tuple) else c for c in df.columns]
             
+        # BTC 是 24h 交易，股市有休市，這裡用 dropna 取交集 (即只看股市開盤日)
         return df.ffill().dropna()
     except:
         return pd.DataFrame()
@@ -105,6 +112,7 @@ try:
                 if ".TW" in ticker:
                     twd_prices[ticker] = df[ticker]
                 else:
+                    # BTC-USD 也會在這裡被乘上匯率
                     twd_prices[ticker] = df[ticker] * fx
         else:
             st.warning("無法取得匯率數據")
@@ -155,10 +163,10 @@ try:
             winner = stats_df.sort_values("總報酬率 (%)", ascending=False).iloc[0]
             st.success(f"🏆 獲利王：**{winner.name}** | 獲利: ${winner['最終資產'] - 1000000:,.0f} (+{winner['總報酬率 (%)']:.2f}%)")
 
-            # 卡片顯示 (每行 3 個以適應變多的組合)
-            cols = st.columns(3)
+            # 卡片顯示 (因為有 8 個參賽者，改用 4 欄排版)
+            cols = st.columns(4)
             for i, (name, row) in enumerate(stats_df.iterrows()):
-                with cols[i % 3]:
+                with cols[i % 4]:
                     st.metric(
                         label=name,
                         value=f"${row['最終資產']:,.0f}",
@@ -166,7 +174,7 @@ try:
                     )
             
             st.divider()
-            st.subheader("📊 戰況分析表 (含 S&P500 與 0050)")
+            st.subheader("📊 戰況分析表 (含 VT & BTC)")
             
             st.dataframe(
                 stats_df[['總報酬率 (%)', '最大回撤 (Max DD)', '波動度 (Vol)', '夏普值 (Sharpe)']].style.format("{:.2f}"),
