@@ -65,8 +65,6 @@ portfolios_all = {
 focus_group_names = ["🍺 Ginger Ale (美股因子)", "🇺🇸 S&P 500 (VOO)", "🌊 清流君 Portfolio"]
 portfolios_focus = {k: v for k, v in portfolios_all.items() if k in focus_group_names}
 
-# 群組 B: 全員 (直接用 portfolios_all)
-
 # 群組 C: 長線老將 (剔除年輕 ETF)
 long_term_names = ["🇺🇸 S&P 500 (VOO)", "🇹🇼 0050 (台灣五十)", "🌐 VT (全球股市)", "₿ Bitcoin"]
 portfolios_long = {k: v for k, v in portfolios_all.items() if k in long_term_names}
@@ -97,7 +95,7 @@ def load_data(period):
         else: df = raw
         if isinstance(df.columns, pd.MultiIndex):
             df.columns = [c[0] if isinstance(c, tuple) else c for c in df.columns]
-        return df.ffill() # 這裡不 dropna，保留最大數據量
+        return df.ffill() 
     except:
         return pd.DataFrame()
 
@@ -108,7 +106,7 @@ def calculate_portfolio_performance(df_input, target_portfolios, apply_tax_logic
         needed_tickers.update(p.keys())
     needed_tickers.add("USDTWD=X")
     
-    # 2. 只取相關欄位並清除空值 (關鍵：不同群組的空值起始點不同)
+    # 2. 只取相關欄位並清除空值
     df_subset = df_input[[t for t in needed_tickers if t in df_input.columns]].copy()
     df_subset = df_subset.dropna() 
     
@@ -161,7 +159,7 @@ def calculate_portfolio_performance(df_input, target_portfolios, apply_tax_logic
         
         portfolio_history[name] = daily_val
         
-        # 指標
+        # 指標計算
         total_ret = (daily_val.iloc[-1] / daily_val.iloc[0]) - 1
         daily_ret = daily_val.pct_change().dropna()
         volatility = daily_ret.std() * (252 ** 0.5)
@@ -178,8 +176,9 @@ def calculate_portfolio_performance(df_input, target_portfolios, apply_tax_logic
             "組合名稱": name,
             "最終資產": daily_val.iloc[-1],
             "總報酬率 (%)": total_ret * 100,
+            "年化報酬率 (%)": annual_ret * 100, # <--- 新增欄位
             "最大回撤 (Max DD)": max_dd * 100,
-            "波動度 (Vol)": volatility * 100, # <--- 修正處：將 vol 改為 volatility
+            "波動度 (Vol)": volatility * 100,
             "夏普值 (Sharpe)": sharpe
         })
         
@@ -204,14 +203,19 @@ try:
                 st.caption(f"📅 統計區間: {start1.date()} ~ 今")
                 df_stats1 = pd.DataFrame(stats1).set_index("組合名稱")
                 
-                # 3欄顯示
+                # 顯示重點指標 (上方大字)
                 cols = st.columns(3)
                 for i, (name, row) in enumerate(df_stats1.iterrows()):
                     with cols[i]:
-                        st.metric(name, f"${row['最終資產']:,.0f}", f"{row['總報酬率 (%)']:.2f}%")
+                        st.metric(name, f"${row['最終資產']:,.0f}", f"年化: {row['年化報酬率 (%)']:.2f}%")
                 
                 st.line_chart(hist1)
-                st.dataframe(df_stats1.style.format("{:.2f}"))
+                
+                # 詳細表格
+                st.dataframe(
+                    df_stats1.style.format("{:.2f}"), 
+                    use_container_width=True
+                )
 
         # --- TAB 2: 全員大亂鬥 ---
         with tab2:
@@ -224,7 +228,7 @@ try:
                 st.caption(f"📅 統計區間: {start2.date()} ~ 今")
                 df_stats2 = pd.DataFrame(stats2).set_index("組合名稱")
                 winner2 = df_stats2.sort_values("總報酬率 (%)", ascending=False).iloc[0]
-                st.success(f"🏆 本區獲利王：**{winner2.name}**")
+                st.success(f"🏆 本區獲利王：**{winner2.name}** | 年化報酬率: {winner2['年化報酬率 (%)']:.2f}%")
 
                 st.dataframe(df_stats2.style.format("{:.2f}"), use_container_width=True)
                 st.line_chart(hist2)
@@ -243,7 +247,7 @@ try:
                 cols = st.columns(4)
                 for i, (name, row) in enumerate(df_stats3.iterrows()):
                     with cols[i]:
-                        st.metric(name, f"${row['最終資產']:,.0f}", f"{row['總報酬率 (%)']:.2f}%")
+                        st.metric(name, f"${row['最終資產']:,.0f}", f"年化: {row['年化報酬率 (%)']:.2f}%")
                 
                 st.line_chart(hist3)
                 st.dataframe(df_stats3.style.format("{:.2f}"))
